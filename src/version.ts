@@ -1,2 +1,2 @@
 // Leaf module: node builtins only, so the bin fast path can answer --version without loading the CLI.
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";

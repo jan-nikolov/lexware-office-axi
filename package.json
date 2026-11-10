@@ -1,6 +1,6 @@
 {
   "name": "lexware-office-axi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lexware Office (formerly lexoffice) CLI for AI agents – complete public API, token-efficient TOON output, built on the AXI standard. Unofficial.",
   "keywords": [
     "lexware",
