@@ -260,11 +260,38 @@ export function topLevelHelp(resources: Resource[]): string {
   })}\n`;
 }
 
+/**
+ * `--profile <name>` is the one global flag, and people naturally put it first
+ * (`lexware-office-axi --profile test home`). The SDK only accepts flags after the
+ * command, so move leading profile flags to the end. With nothing left, show home.
+ */
+export function hoistGlobalFlags(argv: string[]): string[] {
+  const lead: string[] = [];
+  let i = 0;
+  while (i < argv.length) {
+    const arg = argv[i]!;
+    if (arg === "--profile" && i + 1 < argv.length) {
+      lead.push(arg, argv[i + 1]!);
+      i += 2;
+    } else if (arg.startsWith("--profile=")) {
+      lead.push(arg);
+      i += 1;
+    } else break;
+  }
+  if (lead.length === 0) return argv;
+  const rest = argv.slice(i);
+  if (rest.length === 0) return ["home", ...lead];
+  // --help / --version ignore the profile anyway
+  if (rest[0]!.startsWith("-")) return rest;
+  return [...rest, ...lead];
+}
+
 export async function main(
-  argv: string[] = process.argv.slice(2),
+  argvRaw: string[] = process.argv.slice(2),
   ioOverride?: Io,
   stdout?: { write: (chunk: string) => unknown },
 ): Promise<void> {
+  const argv = hoistGlobalFlags(argvRaw);
   const io = () => ioOverride ?? defaultIo();
   const resources = allResources(io);
   const commands: Record<string, (args: string[]) => Promise<AxiRenderable>> = {};

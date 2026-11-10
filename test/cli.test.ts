@@ -60,6 +60,16 @@ describe("basics", () => {
     expect(r.requests[0]!.headers.Authorization).toBe(`Bearer ${KEY}`);
   });
 
+  it("accepts --profile before the command", async () => {
+    const env = { LEXWARE_API_KEY: "", LEXWARE_API_KEY_TEST: KEY };
+    for (const argv of [["--profile", "test", "profile"], ["--profile=test", "profile"], ["--profile", "test"]]) {
+      const r = await run(argv, [profile, on("GET", "/v1/voucherlist", page([]))], { env });
+      expect(r.exitCode).toBe(0);
+      expect(r.out).toContain("Testfirma GmbH");
+      expect(r.requests[0]!.headers.Authorization).toBe(`Bearer ${KEY}`);
+    }
+  });
+
   it("profile hides the account owner's personal data", async () => {
     const r = await run(["profile"], [profile]);
     expect(r.out).toContain("Testfirma GmbH");
