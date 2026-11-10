@@ -7,6 +7,7 @@ import {
   OUT_FLAG,
   deeplink,
   gate,
+  willPreview,
   readBody,
   saveDownload,
   truncateDeep,
@@ -14,7 +15,7 @@ import {
   type Ctx,
   type Resource,
 } from "../core.js";
-import { missingForBooking, voucherSummary } from "../summary.js";
+import { describeVoucher, missingForBooking, voucherSummary } from "../summary.js";
 import { listFlags, voucherlist } from "./voucherlist.js";
 
 type Obj = Record<string, unknown>;
@@ -184,8 +185,9 @@ export function vouchersResource(): Resource {
             const missing = missingForBooking(body);
             if (missing.length) throw new AxiError(`Cannot book: missing ${missing.join(", ")}`, "VALIDATION_ERROR");
           }
+          const about = book && willPreview(ctx, "final") ? await describeVoucher(ctx, body) : undefined;
           const stop = gate(ctx, book ? "final" : "write", { method: "POST", path: "/v1/vouchers", body },
-            book ? "Create and book the voucher (status open); the API cannot undo this" : "Create an unchecked voucher (deletable only in the web app)");
+            book ? "Create and book the voucher (status open); the API cannot undo this" : "Create an unchecked voucher (deletable only in the web app)", about);
           if (stop) return stop;
           const res = await ctx.client().json<Obj>("POST", "/v1/vouchers", { body });
           const id = String(res.data?.id ?? "");
@@ -205,8 +207,9 @@ export function vouchersResource(): Resource {
           const patch = (await readBody(ctx, true))!;
           const { current, body } = await mergeForPut(ctx, `/v1/vouchers/${id}`, patch, ctx.flags.replace === true);
           const books = body.voucherStatus === "open" && current.voucherStatus !== "open";
+          const about = books && willPreview(ctx, "final") ? await describeVoucher(ctx, body) : undefined;
           const stop = gate(ctx, books ? "final" : "write", { method: "PUT", path: `/v1/vouchers/${id}`, body },
-            books ? "Book the voucher (unchecked → open); the API cannot undo this" : "Update the voucher; files missing from files[] are removed for good");
+            books ? "Book the voucher (unchecked → open); the API cannot undo this" : "Update the voucher; files missing from files[] are removed for good", about);
           if (stop) return stop;
           await ctx.client().json("PUT", `/v1/vouchers/${id}`, { body });
           return { updated: { id, status: body.voucherStatus ?? null }, help: [`Run \`${BIN} ${r} get ${id}${ctx.p}\``] };
@@ -237,7 +240,8 @@ export function vouchersResource(): Resource {
               `Category ids: \`${BIN} ref posting-categories --type outgo\``,
             ]);
           }
-          const stop = gate(ctx, "final", { method: "PUT", path: `/v1/vouchers/${id}`, body }, "Book the voucher (unchecked → open); the API cannot undo this");
+          const about = willPreview(ctx, "final") ? await describeVoucher(ctx, body) : undefined;
+          const stop = gate(ctx, "final", { method: "PUT", path: `/v1/vouchers/${id}`, body }, "Book the voucher (unchecked → open); the API cannot undo this", about);
           if (stop) return stop;
           await ctx.client().json("PUT", `/v1/vouchers/${id}`, { body });
           return { booked: { id, number: body.voucherNumber ?? null, gross: body.totalGrossAmount ?? null, link: deeplink("vouchers", id) } };

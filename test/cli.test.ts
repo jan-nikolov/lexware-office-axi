@@ -190,6 +190,21 @@ describe("vouchers", () => {
     expect(sent.organizationId).toBeUndefined();
   });
 
+  it("book preview describes the voucher in one readable line; --confirm skips the lookups", async () => {
+    const withContact = { ...complete, useCollectiveContact: false, contactId: UUID, totalGrossAmount: 16.2, totalTaxAmount: 0, voucherItems: [{ amount: 16.2, taxAmount: 0, taxRatePercent: 19, categoryId: UUID2 }] };
+    const routes = [
+      on("GET", `/v1/vouchers/${UUID}`, { json: withContact }),
+      on("GET", `/v1/contacts/${UUID}`, { json: { company: { name: "Google Cloud EMEA Limited" } } }),
+      on("GET", "/v1/posting-categories", { json: [{ id: UUID2, name: "Software" }] }),
+      on("PUT", `/v1/vouchers/${UUID}`, { json: { id: UUID } }),
+    ];
+    const preview = await run(["vouchers", "book", UUID], routes);
+    expect(writes(preview)).toHaveLength(0);
+    expect(preview.out).toContain("about: \"Google Cloud EMEA Limited · purchaseinvoice R-1 · 16.20 EUR gross · 2026-11-10 · 16.20 EUR, tax 19% = 0.00 EUR, Software\"");
+    const confirmed = await run(["vouchers", "book", UUID, "--confirm"], routes);
+    expect(confirmed.requests.map((q) => q.path)).toEqual([`/v1/vouchers/${UUID}`, `/v1/vouchers/${UUID}`]);
+  });
+
   it("book reports missing fields instead of sending", async () => {
     const r = await run(["vouchers", "book", UUID, "--confirm"], [
       on("GET", `/v1/vouchers/${UUID}`, { json: { ...complete, voucherItems: [], useCollectiveContact: false } }),

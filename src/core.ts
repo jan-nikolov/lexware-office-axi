@@ -186,12 +186,23 @@ export interface Planned {
  * Returns an output object when the request must NOT be sent (dry run, or final tier
  * without --confirm); returns undefined when the caller may send it.
  */
-export function gate(ctx: Ctx, tier: Tier, planned: Planned | Planned[], effect: string): AxiStructuredOutput | undefined {
+/** True when gate() will stop this call (dry run, or final tier without --confirm). */
+export function willPreview(ctx: Ctx, tier: Tier): boolean {
+  return ctx.flags["dry-run"] === true || (tier === "final" && ctx.flags.confirm !== true);
+}
+
+/**
+ * `about` is a one-line, human-readable description of the affected record (who, number,
+ * amount, date). Approval UIs show it instead of the raw request.
+ */
+export function gate(ctx: Ctx, tier: Tier, planned: Planned | Planned[], effect: string, about?: string): AxiStructuredOutput | undefined {
   const requests = Array.isArray(planned) ? planned : [planned];
   const shown = requests.map(compactPlanned);
+  const aboutField = about ? { about } : {};
   if (ctx.flags["dry-run"] === true) {
     return {
       dry_run: "nothing was sent",
+      ...aboutField,
       tier,
       effect,
       would_send: shown,
@@ -201,6 +212,7 @@ export function gate(ctx: Ctx, tier: Tier, planned: Planned | Planned[], effect:
   if (tier === "final" && ctx.flags.confirm !== true) {
     return {
       preview: "nothing was sent – this action is binding or irreversible",
+      ...aboutField,
       tier,
       effect,
       would_send: shown,

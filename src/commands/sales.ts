@@ -9,6 +9,7 @@ import {
   compact,
   deeplink,
   gate,
+  willPreview,
   readBody,
   saveDownload,
   truncateDeep,
@@ -16,7 +17,7 @@ import {
   type Resource,
   type Verb,
 } from "../core.js";
-import { salesSummary } from "../summary.js";
+import { describeSalesDraft, salesSummary } from "../summary.js";
 import { listFlags, voucherlist } from "./voucherlist.js";
 
 interface SalesKind {
@@ -228,7 +229,8 @@ export function salesResource(kind: SalesKind): Resource {
           ? `Issue ${an(kind.label)} with a number; it cannot be edited or deleted afterwards`
           : `Create a draft ${kind.label}; drafts can only be deleted in the Lexware web app`;
         if (finalize && r === "credit-notes" && from) effect += "; the linked invoice's open amount drops immediately";
-        const stop = gate(ctx, finalize ? "final" : "write", { method: "POST", path: `/v1/${r}`, query, body }, effect);
+        const about = finalize && willPreview(ctx, "final") ? await describeSalesDraft(ctx, kind.label, body) : undefined;
+        const stop = gate(ctx, finalize ? "final" : "write", { method: "POST", path: `/v1/${r}`, query, body }, effect, about);
         if (stop) return stop;
         const res = await ctx.client().json<Record<string, unknown>>("POST", `/v1/${r}`, { query, body });
         const id = String(res.data?.id ?? "");

@@ -1,4 +1,5 @@
 import { compact, deeplink, money } from "./core.js";
+import type { Ctx } from "./core.js";
 
 type Obj = Record<string, unknown>;
 const o = (v: unknown): Obj => (v && typeof v === "object" ? (v as Obj) : {});
@@ -255,4 +256,80 @@ export function recurringSummary(item: unknown): Obj {
       last_error: s.lastExecutionErrorMessage,
     }),
   });
+}
+
+// ---------- one-line descriptions for approval previews ----------
+
+function fmtAmount(value: unknown): string {
+  const n = money(value);
+  return n === null ? "?" : `${n.toFixed(2)} EUR`;
+}
+
+function contactLabel(c: Obj): string | undefined {
+  const company = o(c.company);
+  if (typeof company.name === "string" && company.name) return company.name;
+  const person = o(c.person);
+  const name = [person.firstName, person.lastName].filter((x) => typeof x === "string" && x).join(" ");
+  return name || undefined;
+}
+
+/** Best-effort lookups; a failed lookup never blocks the preview. */
+export async function describeVoucher(ctx: Ctx, v: Obj): Promise<string> {
+  let contact: string | undefined = typeof v.contactName === "string" ? v.contactName : undefined;
+  if (!contact && typeof v.contactId === "string") {
+    try {
+      contact = contactLabel(o((await ctx.client().json("GET", `/v1/contacts/${v.contactId}`)).data));
+    } catch {
+      // keep the id-less description
+    }
+  }
+  if (!contact && v.useCollectiveContact === true) contact = "collective contact";
+  let categories: Map<string, string> = new Map();
+  const items = Array.isArray(v.voucherItems) ? v.voucherItems.map(o) : [];
+  if (items.some((i) => typeof i.categoryId === "string")) {
+    try {
+      const res = await ctx.client().json<Obj[]>("GET", "/v1/posting-categories");
+      categories = new Map((res.data ?? []).map((c) => [String(c.id), String(c.name ?? "")]));
+    } catch {
+      // names are optional
+    }
+  }
+  const parts = [
+    contact ?? "unknown contact",
+    [v.type, v.voucherNumber].filter(Boolean).join(" "),
+    `${fmtAmount(v.totalGrossAmount)} gross`,
+    day(v.voucherDate) ?? undefined,
+  ];
+  const itemText = items.map((i) => {
+    const cat = typeof i.categoryId === "string" ? categories.get(i.categoryId) : undefined;
+    return `${fmtAmount(i.amount)}, tax ${i.taxRatePercent ?? "?"}% = ${fmtAmount(i.taxAmount)}${cat ? `, ${cat}` : ""}`;
+  });
+  return [...parts.filter((p): p is string => typeof p === "string" && p.length > 0), ...itemText].join(" · ");
+}
+
+export async function describeSalesDraft(ctx: Ctx, label: string, body: Obj): Promise<string> {
+  const address = o(body.address);
+  let contact: string | undefined = typeof address.name === "string" ? address.name : undefined;
+  if (!contact && typeof address.contactId === "string") {
+    try {
+      contact = contactLabel(o((await ctx.client().json("GET", `/v1/contacts/${address.contactId}`)).data));
+    } catch {
+      // keep going
+    }
+  }
+  const lines = Array.isArray(body.lineItems) ? body.lineItems.map(o) : [];
+  let net = 0;
+  for (const l of lines) {
+    const price = o(l.unitPrice);
+    const q = Number(l.quantity ?? 0);
+    const p = Number(price.netAmount ?? price.grossAmount ?? 0);
+    if (Number.isFinite(q) && Number.isFinite(p)) net += q * p;
+  }
+  return [
+    contact ?? "unknown contact",
+    label,
+    `${lines.length} line item${lines.length === 1 ? "" : "s"}`,
+    `≈ ${net.toFixed(2)} EUR before tax`,
+    day(body.voucherDate) ?? undefined,
+  ].filter((p): p is string => typeof p === "string" && p.length > 0).join(" · ");
 }
