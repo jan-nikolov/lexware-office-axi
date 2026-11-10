@@ -28,7 +28,7 @@
   "bugs": "https://github.com/jan-nikolov/lexware-office-axi/issues",
   "type": "module",
   "bin": {
-    "lexware-office-axi": "./dist/bin/lexware-office-axi.js"
+    "lexware-office-axi": "dist/bin/lexware-office-axi.js"
   },
   "files": [
     "dist/bin",
