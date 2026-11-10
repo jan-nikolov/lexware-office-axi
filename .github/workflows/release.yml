@@ -1,0 +1,30 @@
+name: Release
+
+# Publishes to npm when a version tag (v0.1.0, …) is pushed.
+# Uses npm Trusted Publishing (OIDC): no npm token is stored in this repository.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - name: Tag matches package.json version
+        run: test "v$(node -p 'require(`./package.json`).version')" = "${GITHUB_REF_NAME}"
+      - run: npm run build
+      - run: npm test
+      - run: npm run check:skill
+      - run: npm publish --provenance --access public

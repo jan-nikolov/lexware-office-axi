@@ -1,0 +1,61 @@
+{
+  "name": "lexware-office-axi",
+  "version": "0.1.0",
+  "description": "Lexware Office (formerly lexoffice) CLI for AI agents – complete public API, token-efficient TOON output, built on the AXI standard. Unofficial.",
+  "keywords": [
+    "lexware",
+    "lexware-office",
+    "lexoffice",
+    "lexoffice-api",
+    "axi",
+    "cli",
+    "ai-agents",
+    "claude-code",
+    "codex",
+    "invoicing",
+    "bookkeeping",
+    "rechnung",
+    "buchhaltung",
+    "germany"
+  ],
+  "license": "MIT",
+  "author": "Jan Nikolov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jan-nikolov/lexware-office-axi.git"
+  },
+  "homepage": "https://github.com/jan-nikolov/lexware-office-axi#readme",
+  "bugs": "https://github.com/jan-nikolov/lexware-office-axi/issues",
+  "type": "module",
+  "bin": {
+    "lexware-office-axi": "./dist/bin/lexware-office-axi.js"
+  },
+  "files": [
+    "dist/bin",
+    "dist/src",
+    "skills/lexware-office-axi",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:skill": "node dist/scripts/build-skill.js",
+    "check:skill": "node dist/scripts/build-skill.js --check",
+    "prepublishOnly": "npm run build && npm test && npm run check:skill"
+  },
+  "dependencies": {
+    "@toon-format/toon": "2.3.1",
+    "axi-sdk-js": "0.1.14"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}
